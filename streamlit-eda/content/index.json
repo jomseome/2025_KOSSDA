@@ -1,0 +1,74 @@
+[
+  {
+    "id": "migrant-increase",
+    "category": "community",
+    "title": "국제이주인구의 증가",
+    "img": "https://placehold.co/600x400/d1d5db/374151?text=Family",
+    "type": "detail",
+    "body": "migrant-increase.md"
+  },
+  {
+    "id": "aging-society",
+    "category": "community",
+    "title": "고령화와 경제적 부담",
+    "img": "https://placehold.co/600x400/e5e7eb/4b5563?text=Community",
+    "type": "detail",
+    "body": "aging-society.md"
+  },
+  {
+    "id": "social-conflict",
+    "category": "politics",
+    "title": "사회 차별과 갈등 문제",
+    "img": "https://placehold.co/600x400/9ca3af/1f2937?text=Politics",
+    "type": "detail",
+    "body": "social-conflict.md"
+  },
+  {
+    "id": "human-resources",
+    "category": "education",
+    "title": "기술패권시대 인재 확보",
+    "img": "https://placehold.co/600x400/fca5a5/7f1d1d?text=Education",
+    "type": "detail",
+    "body": "human-resources.md"
+  },
+  {
+    "id": "labor-market",
+    "category": "work",
+    "title": "노동시장 변화와 불평등",
+    "img": "https://placehold.co/600x400/8b5cf6/ffffff?text=Work",
+    "type": "detail",
+    "body": "labor-market.md"
+  },
+  {
+    "id": "income-inequality",
+    "category": "economy",
+    "title": "소득불평등 해소 방안",
+    "img": "https://placehold.co/600x400/10b981/ffffff?text=Economy",
+    "type": "detail",
+    "body": "income-inequality.md"
+  },
+  {
+    "id": "carbon-neutral",
+    "category": "environment",
+    "title": "탄소중립사회로의 이행",
+    "img": "https://placehold.co/600x400/22c55e/ffffff?text=Environment",
+    "type": "default",
+    "body": "placeholder.md"
+  },
+  {
+    "id": "ai-society",
+    "category": "technology",
+    "title": "AI와 디지털 사회",
+    "img": "https://placehold.co/600x400/3b82f6/ffffff?text=Technology",
+    "type": "default",
+    "body": "placeholder.md"
+  },
+  {
+    "id": "balanced-development",
+    "category": "space",
+    "title": "국토균형발전과 주거 안정",
+    "img": "https://placehold.co/600x400/6366f1/ffffff?text=Space",
+    "type": "default",
+    "body": "placeholder.md"
+  }
+]
