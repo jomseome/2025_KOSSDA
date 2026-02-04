@@ -22,6 +22,11 @@ EDUCATION_CARE_PATH = (
     / "excel_data"
     / "(0204)교육돌봄 데이터_v1.0.xlsx"
 )
+POLITICS_CIVIC_PATH = (
+    DATA_DIR
+    / "excel_data"
+    / "(0204)정치사회 데이터_v1.0.xlsx"
+)
 
 EDUCATION_CARE_SHEETS = {
     1: "그림1",
@@ -59,6 +64,25 @@ EDUCATION_CARE_TITLES = {
     15: "그림 15. OECD 주요국의 GDP 대비 보육·유아교육 공공지출 비율",
 }
 
+POLITICS_CIVIC_SHEETS = {idx: f"그림{idx}" for idx in range(1, 15)}
+
+POLITICS_CIVIC_TITLES = {
+    1: "그림 1. 일반 신뢰, 2003-2025",
+    2: "그림 2. 이타주의와 이기주의에 대한 인식, 2003-2025",
+    3: "그림 3. 공정성에 대한 인식, 2003-2025",
+    4: "그림 4. 중앙정부에 대한 신뢰, 2003-2025",
+    5: "그림 5. 대통령실에 대한 신뢰, 2003-2025",
+    6: "그림 6. 국회에 대한 신뢰, 2003-2025",
+    7: "그림 7. 대법원에 대한 신뢰, 2003-2025",
+    8: "그림 8. 이념 성향별 정치 효능감, 2013-2024",
+    9: "그림 9. 선거 투표율, 1987-2025",
+    10: "그림 10. 비선거적 정치 참여율, 2013-2024",
+    11: "그림 11. 무당파의 이념 성향, 2003-2025",
+    12: "그림 12. 진보 정당 지지자의 이념 성향, 2003-2025",
+    13: "그림 13. 보수 정당 지지자의 이념 성향, 2003-2025",
+    14: "그림 14. 주요국의 정치 양극화 수준, 2000-2025",
+}
+
 
 @lru_cache(maxsize=4)
 def _load_dataset() -> Dict[str, pd.DataFrame]:
@@ -78,6 +102,21 @@ def _education_care_excel() -> pd.ExcelFile:
 @lru_cache(maxsize=32)
 def _education_care_sheet(sheet: str) -> pd.DataFrame:
     excel = _education_care_excel()
+    if sheet not in excel.sheet_names:
+        raise KeyError(f"시트 `{sheet}`을(를) 찾을 수 없습니다.")
+    return excel.parse(sheet)
+
+
+@lru_cache(maxsize=1)
+def _politics_civic_excel() -> pd.ExcelFile:
+    if not POLITICS_CIVIC_PATH.exists():
+        raise FileNotFoundError(f"정치·시민사회 데이터 파일을 찾을 수 없습니다: {POLITICS_CIVIC_PATH}")
+    return pd.ExcelFile(POLITICS_CIVIC_PATH)
+
+
+@lru_cache(maxsize=32)
+def _politics_civic_sheet(sheet: str) -> pd.DataFrame:
+    excel = _politics_civic_excel()
     if sheet not in excel.sheet_names:
         raise KeyError(f"시트 `{sheet}`을(를) 찾을 수 없습니다.")
     return excel.parse(sheet)
@@ -115,6 +154,23 @@ def _parse_year(value) -> float:
 
 def _year_columns(columns) -> list:
     return [col for col in columns if not pd.isna(_parse_year(col))]
+
+
+def _clean_unnamed_first_col(df: pd.DataFrame, column_name: str = "category") -> pd.DataFrame:
+    df = df.copy()
+    if "Unnamed: 0" in df.columns:
+        return df.rename(columns={"Unnamed: 0": column_name})
+    return df.rename(columns={df.columns[0]: column_name})
+
+
+def _to_long_wide_years(df_wide: pd.DataFrame, id_col: str, value_name: str = "value") -> pd.DataFrame:
+    df = df_wide.copy()
+    year_cols = _year_columns(df.columns)
+    long_df = df.melt(id_vars=[id_col], value_vars=year_cols, var_name="year", value_name=value_name)
+    long_df["year"] = long_df["year"].apply(_parse_year)
+    long_df = long_df.dropna(subset=["year"])
+    long_df["year"] = long_df["year"].astype(int)
+    return long_df
 
 
 def _apply_common_layout(fig: go.Figure, title: str) -> go.Figure:
@@ -571,6 +627,211 @@ def education_care_fig15(story_slug: str, slot_id: str) -> go.Figure:
     return _apply_common_layout(fig, EDUCATION_CARE_TITLES[15])
 
 
+def politics_civic_fig01(story_slug: str, slot_id: str) -> go.Figure:
+    df = _politics_civic_sheet(POLITICS_CIVIC_SHEETS[1])
+    df = df.dropna(how="all")
+    if list(df.columns) == [0, 1]:
+        df.columns = ["year", "score"]
+    else:
+        df = df.rename(columns={df.columns[0]: "year", df.columns[1]: "score"})
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df.dropna(subset=["year"])
+    df["year"] = df["year"].astype(int)
+
+    fig = px.line(df, x="year", y="score", markers=True)
+    fig.update_layout(xaxis_title="연도", yaxis_title="점수")
+    return _apply_common_layout(fig, POLITICS_CIVIC_TITLES[1])
+
+
+def _politics_stacked(sheet: str, title: str) -> go.Figure:
+    df = _politics_civic_sheet(sheet)
+    df = _clean_unnamed_first_col(df)
+    long = _to_long_wide_years(df, id_col="category", value_name="percent")
+
+    fig = px.bar(long, x="year", y="percent", color="category", barmode="stack")
+    fig.update_layout(xaxis_title="연도", yaxis_title="비율(%)")
+    fig.update_yaxes(range=[0, 100])
+    return _apply_common_layout(fig, title)
+
+
+def politics_civic_fig02(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[2], POLITICS_CIVIC_TITLES[2])
+
+
+def politics_civic_fig03(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[3], POLITICS_CIVIC_TITLES[3])
+
+
+def politics_civic_fig04(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[4], POLITICS_CIVIC_TITLES[4])
+
+
+def politics_civic_fig05(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[5], POLITICS_CIVIC_TITLES[5])
+
+
+def politics_civic_fig06(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[6], POLITICS_CIVIC_TITLES[6])
+
+
+def politics_civic_fig07(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_stacked(POLITICS_CIVIC_SHEETS[7], POLITICS_CIVIC_TITLES[7])
+
+
+def politics_civic_fig08(story_slug: str, slot_id: str) -> go.Figure:
+    df = _politics_civic_sheet(POLITICS_CIVIC_SHEETS[8])
+    df = _clean_unnamed_first_col(df)
+    long = _to_long_wide_years(df, id_col="category", value_name="score")
+
+    fig = px.line(long, x="year", y="score", color="category", markers=True)
+    fig.update_layout(xaxis_title="연도", yaxis_title="점수")
+    return _apply_common_layout(fig, POLITICS_CIVIC_TITLES[8])
+
+
+def politics_civic_fig09(story_slug: str, slot_id: str) -> go.Figure:
+    df = _politics_civic_sheet(POLITICS_CIVIC_SHEETS[9]).copy()
+    df.columns = [str(c).strip() for c in df.columns]
+    df = _clean_unnamed_first_col(df, column_name="year")
+    long = df.melt(id_vars=["year"], var_name="election_type", value_name="turnout")
+    long["year"] = pd.to_numeric(long["year"], errors="coerce")
+    long = long.dropna(subset=["year"])
+    long["year"] = long["year"].astype(int)
+
+    fig = px.scatter(long, x="year", y="turnout", color="election_type")
+    fig.update_traces(mode="lines+markers")
+    fig.update_layout(xaxis_title="연도", yaxis_title="투표율(%)")
+    fig.update_yaxes(range=[0, 100])
+    return _apply_common_layout(fig, POLITICS_CIVIC_TITLES[9])
+
+
+def _parse_politics_fig10_blocks() -> pd.DataFrame:
+    raw = _politics_civic_sheet(POLITICS_CIVIC_SHEETS[10])
+    raw = raw.replace({np.nan: None})
+    records = []
+
+    def collect_block(activity, year_col, rate_col, start_row):
+        r = start_row
+        while r < len(raw):
+            y = raw.iloc[r, year_col]
+            v = raw.iloc[r, rate_col]
+            if (raw.iloc[r, 0] is not None) or (raw.iloc[r, 4] is not None):
+                if r != start_row:
+                    break
+            if y is None and v is None:
+                r += 1
+                continue
+            try:
+                year = int(float(y))
+                rate = float(v)
+                records.append({"activity": activity, "year": year, "rate": rate})
+            except Exception:
+                pass
+            r += 1
+        return r
+
+    r = 0
+    while r < len(raw):
+        left_name = raw.iloc[r, 0]
+        right_name = raw.iloc[r, 4]
+        if left_name is not None and isinstance(left_name, str) and left_name.strip():
+            r = collect_block(left_name.strip(), 1, 2, r + 1)
+            continue
+        if right_name is not None and isinstance(right_name, str) and right_name.strip():
+            r = collect_block(right_name.strip(), 5, 6, r + 1)
+            continue
+        r += 1
+
+    return pd.DataFrame.from_records(records)
+
+
+def politics_civic_fig10(story_slug: str, slot_id: str) -> go.Figure:
+    long = _parse_politics_fig10_blocks()
+    long = long.sort_values(["activity", "year"]).reset_index(drop=True)
+
+    activities = long["activity"].unique().tolist()
+    default_act = activities[0] if activities else None
+
+    fig = go.Figure()
+    for act in activities:
+        d = long[long["activity"] == act]
+        fig.add_trace(
+            go.Scatter(
+                x=d["year"],
+                y=d["rate"],
+                mode="lines+markers",
+                name=act,
+                visible=(act == default_act),
+            )
+        )
+
+    buttons = []
+    for i, act in enumerate(activities):
+        vis = [False] * len(activities)
+        vis[i] = True
+        buttons.append(
+            dict(
+                label=act,
+                method="update",
+                args=[{"visible": vis}, {"title": f"{POLITICS_CIVIC_TITLES[10]} - {act}"}],
+            )
+        )
+
+    fig.update_layout(
+        title=f"{POLITICS_CIVIC_TITLES[10]} - {default_act}" if default_act else POLITICS_CIVIC_TITLES[10],
+        xaxis_title="연도",
+        yaxis_title="참여율(%)",
+        updatemenus=[dict(buttons=buttons, direction="down", x=1.02, y=1.0, xanchor="left")],
+    )
+    if not long.empty:
+        fig.update_yaxes(range=[0, max(10, float(long["rate"].max()))])
+    return _apply_common_layout(fig, POLITICS_CIVIC_TITLES[10])
+
+
+def _politics_ideology(sheet: str, title: str) -> go.Figure:
+    raw = _politics_civic_sheet(sheet).dropna(how="all")
+    header = raw.iloc[1].tolist()
+    cols = ["year"] + [str(h).strip() for h in header[1:]]
+    df = raw.iloc[2:].copy()
+    df.columns = cols
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df.dropna(subset=["year"])
+    df["year"] = df["year"].astype(int)
+    long = df.melt(id_vars=["year"], var_name="ideology", value_name="percent")
+    long["percent"] = pd.to_numeric(long["percent"], errors="coerce")
+
+    fig = px.line(long, x="year", y="percent", color="ideology", markers=True)
+    fig.update_layout(xaxis_title="연도", yaxis_title="비율(%)")
+    fig.update_yaxes(range=[0, 100])
+    return _apply_common_layout(fig, title)
+
+
+def politics_civic_fig11(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_ideology(POLITICS_CIVIC_SHEETS[11], POLITICS_CIVIC_TITLES[11])
+
+
+def politics_civic_fig12(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_ideology(POLITICS_CIVIC_SHEETS[12], POLITICS_CIVIC_TITLES[12])
+
+
+def politics_civic_fig13(story_slug: str, slot_id: str) -> go.Figure:
+    return _politics_ideology(POLITICS_CIVIC_SHEETS[13], POLITICS_CIVIC_TITLES[13])
+
+
+def politics_civic_fig14(story_slug: str, slot_id: str) -> go.Figure:
+    df = _politics_civic_sheet(POLITICS_CIVIC_SHEETS[14])
+    df = _clean_unnamed_first_col(df, column_name="year")
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df.dropna(subset=["year"])
+    df["year"] = df["year"].astype(int)
+    long = df.melt(id_vars=["year"], var_name="country", value_name="polarization")
+    long["polarization"] = pd.to_numeric(long["polarization"], errors="coerce")
+
+    fig = px.scatter(long, x="year", y="polarization", color="country")
+    fig.update_traces(mode="lines+markers")
+    fig.update_layout(xaxis_title="연도", yaxis_title="양극화 지표")
+    return _apply_common_layout(fig, POLITICS_CIVIC_TITLES[14])
+
+
 VISUAL_RENDERERS = {
     "covid_section2_chart": covid_section2_chart,
     "covid_section3_chart": covid_section3_chart,
@@ -589,6 +850,20 @@ VISUAL_RENDERERS = {
     "education_care_fig13": education_care_fig13,
     "education_care_fig14": education_care_fig14,
     "education_care_fig15": education_care_fig15,
+    "politics_civic_fig01": politics_civic_fig01,
+    "politics_civic_fig02": politics_civic_fig02,
+    "politics_civic_fig03": politics_civic_fig03,
+    "politics_civic_fig04": politics_civic_fig04,
+    "politics_civic_fig05": politics_civic_fig05,
+    "politics_civic_fig06": politics_civic_fig06,
+    "politics_civic_fig07": politics_civic_fig07,
+    "politics_civic_fig08": politics_civic_fig08,
+    "politics_civic_fig09": politics_civic_fig09,
+    "politics_civic_fig10": politics_civic_fig10,
+    "politics_civic_fig11": politics_civic_fig11,
+    "politics_civic_fig12": politics_civic_fig12,
+    "politics_civic_fig13": politics_civic_fig13,
+    "politics_civic_fig14": politics_civic_fig14,
 }
 
 
