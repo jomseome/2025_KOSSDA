@@ -1,9 +1,0 @@
-streamlit
-pandas
-numpy
-plotly
-openpyxl
-pyarrow
-pypdf
-markdown
-streamlit-quill

@@ -15,6 +15,7 @@ from .chart_builder import build_chart
 from .generated_content import list_stories, load_story
 from .story_render import render_story_content
 from .visual_runtime import render_interactive_panel, render_visual_from_registry
+from .workspace_data import DATA_DIR
 
 PLACEHOLDER_TOKENS = (
     "{{viz}}",
@@ -163,9 +164,9 @@ MOCK_DB = _build_mock_db()
 EDUCATION_LAB_DATASETS: Dict[str, Dict[str, Any]] = {
     "education-care-realignment": {
         "title": "미래사회의 문턱에서 한국의 교육 훈련 돌봄 체계는 어떻게 재정렬되고 있는가",
-        "path": Path(
-            "Data/excel_data/(임시본)교육훈련 및 돌봄분야 데이터 모음.xlsx"
-        ),
+        "path": DATA_DIR
+        / "excel_data"
+        / "(임시본)교육훈련 및 돌봄분야 데이터 모음.xlsx",
     }
 }
 

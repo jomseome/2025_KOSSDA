@@ -17,6 +17,8 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "Data"
+if not DATA_DIR.exists():
+    DATA_DIR = BASE_DIR / "legacy_app" / "Data"
 PAPER_DIR = DATA_DIR / "paper"
 EXCEL_DIR = DATA_DIR / "excel_data"
 

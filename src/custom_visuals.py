@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
+import io
 import re
 from typing import Dict
 
@@ -11,29 +11,52 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+from openpyxl import load_workbook
+from PIL import Image
 
-DATA_PATH = Path("Data/excel_data/sample_story_points.xlsx")
-EDUCATION_CARE_PATH = Path(
-    "Data/excel_data/(임시본)교육훈련 및 돌봄분야 데이터 모음.xlsx"
+from .workspace_data import DATA_DIR
+
+DATA_PATH = DATA_DIR / "excel_data" / "sample_story_points.xlsx"
+EDUCATION_CARE_PATH = (
+    DATA_DIR
+    / "excel_data"
+    / "(0204)교육돌봄 데이터_v1.0.xlsx"
 )
 
 EDUCATION_CARE_SHEETS = {
-    1: "그림1. 학령아동 변동 추계",
-    2: "그림2. OECD 교사 1인당 학생 수",
-    3: "그림3. 한국과 OECD의 학급당 학생 수",
-    4: "그림4. 한국과 OECD의 교육단계별 GDP 대비 공교육",
-    5: "그림5. 한국과 OECD의 국제 학업성취도 평가 결과",
-    6: "그림6. 한국과 OECD의 수학 점수에서의 학교 내 및 ",
-    7: "그림7. 교육단계별 학생 1인당 월평균 사교육비",
-    8: "그림8. OECD 국가 간 사교육 참여 수준 비교",
-    9: "그림9. 초·중·고등학교에 대한 평가",
-    10: "그림10.  학생들의 학업스트레스 정도",
-    11: "그림11. 학생들의 학업스트레스 이유(복수응답)",
-    12: "그림12. OECD 주요 참여국 학생들의 학업 관련 불안",
-    13: "그림13. OECD 주요국의 학부모 학교교육만족도",
-    14: "그림14. 교육수준별 전공직업일치도",
-    15: "그림15. 보육·교육기관 만족도",
-    16: "그림16. 국가별 학교 밖 신체활동을 하지 않는 학생 비",
+    1: "그림1",
+    2: "그림2",
+    3: "그림3",
+    4: "그림4",
+    5: "그림5",
+    6: "그림6",
+    7: "그림7",
+    8: "그림8",
+    9: "그림9",
+    10: "그림10",
+    11: "그림11",
+    12: "그림12",
+    13: "그림13",
+    14: "그림14",
+    15: "그림 15",
+}
+
+EDUCATION_CARE_TITLES = {
+    1: "그림 1. 학교급별 학령인구 수, 2015-2035",
+    2: "그림 2. 한국과 OECD 국가의 초·중·고 교사 1인당 학생 수, 2021-2023",
+    3: "그림 3. 한국과 OECD 국가의 초·중학교 학급당 학생 수, 2019-2023",
+    4: "그림 4. 한국과 OECD 국가의 교육단계별 GDP 대비 공교육비 비율, 2022",
+    5: "그림 5. 한국과 OECD 국가의 국제 학업성취도(PISA) 결과, 2015-2022",
+    6: "그림 6. 한국과 OECD 국가의 수학 점수 분산 비율, 2012-2022",
+    7: "그림 7. 학교급별 학생 1인당 월평균 사교육비, 2010-2024",
+    8: "그림 8. OECD 국가의 사교육 참여 수준, 2022",
+    9: "그림 9. 초·중·고 학교에 대한 평가, 2024",
+    10: "그림 10. OECD 주요국 학생의 학업 관련 불안감, 2015",
+    11: "그림 11. OECD 주요국 학부모의 학교교육 만족도, 2009-2022",
+    12: "그림 12. 교육수준별 전공-직업 일치도, 2000-2024",
+    13: "그림 13. 보육 및 유아교육 기관 만족도, 2015-2024",
+    14: "그림 14. 주요국 학생의 학교 밖 신체활동 미참여율, 2015",
+    15: "그림 15. OECD 주요국의 GDP 대비 보육·유아교육 공공지출 비율",
 }
 
 
@@ -45,19 +68,38 @@ def _load_dataset() -> Dict[str, pd.DataFrame]:
     return {name: excel.parse(name) for name in excel.sheet_names}
 
 
-@lru_cache(maxsize=2)
-def _load_education_care_dataset() -> Dict[str, pd.DataFrame]:
+@lru_cache(maxsize=1)
+def _education_care_excel() -> pd.ExcelFile:
     if not EDUCATION_CARE_PATH.exists():
         raise FileNotFoundError(f"교육·돌봄 데이터 파일을 찾을 수 없습니다: {EDUCATION_CARE_PATH}")
-    excel = pd.ExcelFile(EDUCATION_CARE_PATH)
-    return {name: excel.parse(name) for name in excel.sheet_names}
+    return pd.ExcelFile(EDUCATION_CARE_PATH)
 
 
+@lru_cache(maxsize=32)
 def _education_care_sheet(sheet: str) -> pd.DataFrame:
-    data_map = _load_education_care_dataset()
-    if sheet not in data_map:
+    excel = _education_care_excel()
+    if sheet not in excel.sheet_names:
         raise KeyError(f"시트 `{sheet}`을(를) 찾을 수 없습니다.")
-    return data_map[sheet]
+    return excel.parse(sheet)
+
+
+@lru_cache(maxsize=1)
+def _education_care_sheet_image(sheet: str) -> Image.Image | None:
+    if not EDUCATION_CARE_PATH.exists():
+        return None
+    wb = load_workbook(EDUCATION_CARE_PATH, data_only=True)
+    if sheet not in wb.sheetnames:
+        return None
+    ws = wb[sheet]
+    images = getattr(ws, "_images", [])
+    if not images:
+        return None
+    img = images[0]
+    data_attr = getattr(img, "_data", None)
+    image_data = data_attr() if callable(data_attr) else data_attr
+    if not image_data:
+        return None
+    return Image.open(io.BytesIO(image_data)).convert("RGBA")
 
 
 def _parse_year(value) -> float:
@@ -69,6 +111,10 @@ def _parse_year(value) -> float:
         return int(value)
     match = re.search(r"(\d{4})", str(value).strip())
     return int(match.group(1)) if match else np.nan
+
+
+def _year_columns(columns) -> list:
+    return [col for col in columns if not pd.isna(_parse_year(col))]
 
 
 def _apply_common_layout(fig: go.Figure, title: str) -> go.Figure:
@@ -172,95 +218,109 @@ def covid_interactive_panel(story_slug: str) -> None:
 
 def education_care_fig01(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[1]).rename(columns={"Unnamed: 0": "구분"})
-    long = df.melt(id_vars=["구분"], var_name="연도", value_name="학령아동(천명)")
-    long["연도"] = long["연도"].apply(_parse_year)
-    long = long.dropna(subset=["연도"])
-    long["연도"] = long["연도"].astype(int)
+    year_cols = _year_columns(df.columns)
+    long = df.melt(id_vars=["구분"], value_vars=year_cols, var_name="연도", value_name="값")
 
-    fig = px.line(
-        long,
-        x="연도",
-        y="학령아동(천명)",
-        color="구분",
-        markers=True,
+    df_bar = long[long["구분"].isin(["유치원", "초등학교", "중학교", "고등학교"])].copy()
+    df_total = long[long["구분"] == "전체"].copy()
+
+    fig = go.Figure()
+    for cat in ["유치원", "초등학교", "중학교", "고등학교"]:
+        tmp = df_bar[df_bar["구분"] == cat]
+        fig.add_trace(go.Bar(x=tmp["연도"], y=tmp["값"], name=cat))
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_total["연도"],
+            y=df_total["값"],
+            mode="lines+markers",
+            name="전체(라인)",
+            yaxis="y2",
+        )
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[1])
+
+    fig.update_layout(
+        barmode="stack",
+        xaxis_title="연도",
+        yaxis_title="학령인구",
+        yaxis2=dict(title="전체", overlaying="y", side="right", showgrid=False),
+    )
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[1])
 
 
 def education_care_fig02(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[2]).copy()
     df["기준연도"] = df["기준연도"].ffill()
-    df["기준연도"] = df["기준연도"].apply(_parse_year)
-    df = df.dropna(subset=["기준연도"])
-    df["기준연도"] = df["기준연도"].astype(int)
     long = df.melt(
         id_vars=["기준연도", "구분"],
+        value_vars=["초등학교", "중학교", "고등학교"],
         var_name="학교급",
         value_name="교사1인당학생수",
     )
 
-    fig = px.line(
+    fig = px.bar(
         long,
-        x="기준연도",
+        x="학교급",
         y="교사1인당학생수",
         color="구분",
-        line_dash="학교급",
-        markers=True,
+        barmode="group",
+        facet_col="기준연도",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[2])
+    fig.update_layout(height=520)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[2])
 
 
 def education_care_fig03(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[3]).copy()
     df["기준연도"] = df["기준연도"].ffill()
-    df["기준연도"] = df["기준연도"].apply(_parse_year)
-    df = df.dropna(subset=["기준연도"])
-    df["기준연도"] = df["기준연도"].astype(int)
     long = df.melt(
         id_vars=["기준연도", "구분"],
+        value_vars=["초등학교", "중학교"],
         var_name="학교급",
         value_name="학급당학생수",
     )
 
-    fig = px.line(
+    fig = px.bar(
         long,
-        x="기준연도",
+        x="학교급",
         y="학급당학생수",
         color="구분",
-        line_dash="학교급",
-        markers=True,
+        barmode="group",
+        facet_col="기준연도",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[3])
+    fig.update_layout(height=520)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[3])
 
 
 def education_care_fig04(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[4]).copy()
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[4])
 
-    sub = df.iloc[0].tolist()
     df2 = df.iloc[1:].copy()
+    df2 = df2.rename(columns={"구분": "국가"})
+    df2.columns = ["국가"] + df2.columns[1:].tolist()
 
-    new_cols = []
-    for idx, col in enumerate(df2.columns):
-        if col == "구분":
-            new_cols.append(("구분", "구분"))
-        else:
-            stage = df.columns[idx]
-            sector = sub[idx]
-            new_cols.append((stage, sector))
+    stage_map = [
+        ("초·중등교육", "정부"),
+        ("초·중등교육", "민간"),
+        ("초·중등교육", "합계"),
+        ("고등교육", "정부"),
+        ("고등교육", "민간"),
+        ("고등교육", "합계"),
+        ("초등~고등교육", "정부"),
+        ("초등~고등교육", "민간"),
+        ("초등~고등교육", "합계"),
+    ]
 
-    df2.columns = pd.MultiIndex.from_tuples(new_cols)
-    df2 = df2.rename(columns={("구분", "구분"): "국가"})
-    df2.columns = ["국가" if isinstance(col, tuple) and col[0] == "구분" else col for col in df2.columns]
+    value_cols = df2.columns[1:]
+    if len(value_cols) != 9:
+        raise ValueError(f"그림4: 예상 컬럼(9개)과 다릅니다. 현재={len(value_cols)}")
 
     records = []
-    for col in df2.columns:
-        if col == "국가":
-            continue
-        stage, sector = col
-        tmp = df2[["국가"]].copy()
+    for (stage, fund), col in zip(stage_map, value_cols):
+        tmp = df2[["국가", col]].copy()
         tmp["교육단계"] = stage
-        tmp["재원"] = sector
-        tmp["GDP대비비율(%)"] = df2[col].astype(float)
+        tmp["재원"] = fund
+        tmp = tmp.rename(columns={col: "GDP대비비율(%)"})
         records.append(tmp)
     long = pd.concat(records, ignore_index=True)
 
@@ -272,21 +332,18 @@ def education_care_fig04(story_slug: str, slot_id: str) -> go.Figure:
         barmode="group",
         facet_col="국가",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[4])
+    fig.update_layout(height=520)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[4])
 
 
 def education_care_fig05(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[5]).copy()
-    df["연도"] = df["연도"].ffill().apply(_parse_year)
-    df = df.dropna(subset=["연도"])
-    df["연도"] = df["연도"].astype(int)
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[5])
     long = df.melt(
         id_vars=["연도", "영역"],
         value_vars=["한국", "OECD 평균"],
         var_name="구분",
         value_name="점수",
     )
-
     fig = px.bar(
         long,
         x="영역",
@@ -295,202 +352,223 @@ def education_care_fig05(story_slug: str, slot_id: str) -> go.Figure:
         barmode="group",
         facet_col="연도",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[5])
+    fig.update_layout(height=520)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[5])
 
 
 def education_care_fig06(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[6]).copy()
-    hdr = df.iloc[0].tolist()
-    df2 = df.iloc[1:].copy()
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[6])
+    df2 = df.copy()
     df2 = df2.rename(columns={"Unnamed: 0": "지표"})
 
-    mapping = {
-        df2.columns[1]: ("대한민국", _parse_year(hdr[1])),
-        df2.columns[2]: ("대한민국", _parse_year(hdr[2])),
-        df2.columns[3]: ("OECD 평균", _parse_year(hdr[3])),
-        df2.columns[4]: ("OECD 평균", _parse_year(hdr[4])),
+    colmap = {
+        2012: ("2012", "한국"),
+        "Unnamed: 2": ("2012", "OECD 평균"),
+        2022: ("2022", "한국"),
+        "Unnamed: 4": ("2022", "OECD 평균"),
     }
 
     records = []
-    for col, (country, year) in mapping.items():
-        tmp = df2[["지표"]].copy()
-        tmp["국가"] = country
-        tmp["연도"] = int(year)
-        tmp["비율(%)"] = df2[col].astype(float)
+    for col, (year, group) in colmap.items():
+        tmp = df2[["지표", col]].copy()
+        tmp["연도"] = year
+        tmp["구분"] = group
+        tmp = tmp.rename(columns={col: "값"})
         records.append(tmp)
     long = pd.concat(records, ignore_index=True)
 
     fig = px.bar(
         long,
         x="지표",
-        y="비율(%)",
-        color="국가",
+        y="값",
+        color="구분",
         barmode="group",
         facet_col="연도",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[6])
+    fig.update_layout(height=520)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[6])
 
 
 def education_care_fig07(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[7]).rename(columns={"Unnamed: 0": "학교급"})
-    long = df.melt(id_vars=["학교급"], var_name="연도", value_name="월평균사교육비(만원)")
-    long["연도"] = long["연도"].apply(_parse_year)
-    long = long.dropna(subset=["연도"])
-    long["연도"] = long["연도"].astype(int)
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[7]).copy()
+    df = df.rename(columns={"Unnamed: 0": "구분"})
+    year_cols = _year_columns(df.columns)
+    long = df.melt(id_vars=["구분"], value_vars=year_cols, var_name="연도", value_name="사교육비")
 
     fig = px.line(
         long,
         x="연도",
-        y="월평균사교육비(만원)",
-        color="학교급",
+        y="사교육비",
+        color="구분",
         markers=True,
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[7])
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[7])
 
 
 def education_care_fig08(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[8]).copy()
     df = df.sort_values("사교육 참여수준", ascending=True)
-    df["하이라이트"] = np.where(df["국가"] == "한국", "한국", "기타")
 
     fig = px.bar(
         df,
         x="사교육 참여수준",
         y="국가",
         orientation="h",
-        color="하이라이트",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[8])
+    fig.update_layout(height=900)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[8])
 
 
 def education_care_fig09(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[9]).copy()
     df["평가대상"] = df["평가대상"].ffill()
-    df["라벨"] = df["평가대상"] + " | " + df["구분"].astype(str)
 
     dist_cols = ["매우 잘하고 있다", "잘하고 있다", "보통이다", "못하고 있다", "전혀 못하고 있다"]
-    long = df.melt(id_vars=["라벨"], value_vars=dist_cols, var_name="응답", value_name="비율(%)")
 
-    fig = px.bar(
-        long,
-        x="라벨",
-        y="비율(%)",
-        color="응답",
-        barmode="stack",
+    dist_long = df.melt(
+        id_vars=["평가대상", "구분", "2023년 평균점수", "2024년 평균점수"],
+        value_vars=dist_cols,
+        var_name="응답",
+        value_name="비율",
     )
-    fig.update_xaxes(tickangle=45)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[9])
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    dist_long["대상"] = dist_long["평가대상"].astype(str) + " / " + dist_long["구분"].astype(str)
+
+    for resp in dist_cols:
+        tmp = dist_long[dist_long["응답"] == resp]
+        fig.add_trace(go.Bar(x=tmp["대상"], y=tmp["비율"], name=resp), secondary_y=False)
+
+    base = df.copy()
+    base["대상"] = base["평가대상"].astype(str) + " / " + base["구분"].astype(str)
+
+    fig.add_trace(
+        go.Scatter(x=base["대상"], y=base["2023년 평균점수"], mode="lines+markers", name="2023 평균점수"),
+        secondary_y=True,
+    )
+    fig.add_trace(
+        go.Scatter(x=base["대상"], y=base["2024년 평균점수"], mode="lines+markers", name="2024 평균점수"),
+        secondary_y=True,
+    )
+
+    fig.update_layout(barmode="stack", xaxis_title="평가대상 / 구분", legend_title="항목")
+    fig.update_yaxes(title_text="응답 비율(%)", secondary_y=False)
+    fig.update_yaxes(title_text="평균점수", secondary_y=True, showgrid=False)
+
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[9])
 
 
 def education_care_fig10(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[10]).copy()
-    dist_cols = ["상당히 그렇다", "어느정도 그렇다", "보통이다", "별로 그렇지 않다", "전혀 그렇지 않다"]
-    long = df.melt(id_vars=["구분"], value_vars=dist_cols, var_name="응답", value_name="비율(%)")
+    bar_cols = ["시험을 잘 준비했더라도 불안하다", "공부를 할 때 매우 긴장된다"]
+    line_col = "학업 관련 불안감 지수"
 
-    fig = px.bar(long, x="구분", y="비율(%)", color="응답", barmode="stack")
-    fig.update_xaxes(tickangle=0)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[10])
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    for col in bar_cols:
+        fig.add_trace(go.Bar(x=df["국가"], y=df[col], name=col), secondary_y=False)
+
+    fig.add_trace(
+        go.Scatter(x=df["국가"], y=df[line_col], mode="lines+markers", name=line_col),
+        secondary_y=True,
+    )
+
+    fig.update_layout(barmode="group", xaxis_title="국가")
+    fig.update_yaxes(title_text="비율(%)", secondary_y=False)
+    fig.update_yaxes(title_text="불안감 지수", secondary_y=True, showgrid=False)
+
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[10])
 
 
 def education_care_fig11(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[11]).copy()
-    long = df.melt(id_vars=["구분"], var_name="이유", value_name="비율(%)")
+    df = df.rename(columns={"Unnamed: 0": "국가"})
+    year_cols = _year_columns(df.columns)
+    long = df.melt(id_vars=["국가"], value_vars=year_cols, var_name="연도", value_name="만족도")
+    long["연도"] = long["연도"].apply(_parse_year)
+    long = long.dropna(subset=["연도"])
 
-    fig = px.bar(
+    fig = px.line(
         long,
-        x="이유",
-        y="비율(%)",
-        color="구분",
-        barmode="group",
+        x="연도",
+        y="만족도",
+        color="국가",
+        markers=True,
     )
-    fig.update_xaxes(tickangle=35)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[11])
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[11])
 
 
 def education_care_fig12(story_slug: str, slot_id: str) -> go.Figure:
     df = _education_care_sheet(EDUCATION_CARE_SHEETS[12]).copy()
+    df = df.rename(columns={"Unnamed: 0": "교육수준"})
+    year_cols = _year_columns(df.columns)
+    long = df.melt(id_vars=["교육수준"], value_vars=year_cols, var_name="연도", value_name="일치도")
+    long["연도"] = long["연도"].apply(_parse_year)
+    long = long.dropna(subset=["연도"])
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(
-        go.Bar(
-            x=df["국가"],
-            y=df["시험을 잘 준비했더라도 불안하다"],
-            name="시험 준비해도 불안(%)",
-        ),
-        secondary_y=False,
+    fig = px.line(
+        long,
+        x="연도",
+        y="일치도",
+        color="교육수준",
+        markers=True,
     )
-    fig.add_trace(
-        go.Bar(
-            x=df["국가"],
-            y=df["공부를 할 때 매우 긴장된다"],
-            name="공부할 때 매우 긴장(%)",
-        ),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df["국가"],
-            y=df["학업 관련 불안감 지수"],
-            name="학업 불안감 지수",
-            mode="lines+markers",
-        ),
-        secondary_y=True,
-    )
-
-    fig.update_layout(barmode="group")
-    fig.update_yaxes(title_text="비율(%)", secondary_y=False)
-    fig.update_yaxes(title_text="지수", secondary_y=True)
-    fig.update_xaxes(tickangle=25)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[12])
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[12])
 
 
 def education_care_fig13(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[13]).rename(columns={"Unnamed: 0": "국가"})
-    long = df.melt(id_vars=["국가"], var_name="연도", value_name="만족도(점)")
-    long["연도"] = long["연도"].apply(_parse_year)
-    long = long.dropna(subset=["연도"])
-    long["연도"] = long["연도"].astype(int)
-
-    fig = px.line(long, x="연도", y="만족도(점)", color="국가", markers=True)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[13])
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[13]).copy()
+    long = df.melt(
+        id_vars=["구분"],
+        value_vars=["전체", "어린이집", "유치원"],
+        var_name="기관",
+        value_name="만족도",
+    )
+    fig = px.line(
+        long,
+        x="구분",
+        y="만족도",
+        color="기관",
+        markers=True,
+    )
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[13])
 
 
 def education_care_fig14(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[14]).rename(columns={"Unnamed: 0": "교육수준"})
-    long = df.melt(id_vars=["교육수준"], var_name="연도", value_name="전공-직업일치도(%)")
-    long["연도"] = long["연도"].apply(_parse_year)
-    long = long.dropna(subset=["연도"])
-    long["연도"] = long["연도"].astype(int)
-
-    fig = px.line(long, x="연도", y="전공-직업일치도(%)", color="교육수준", markers=True)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[14])
-
-
-def education_care_fig15(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[15]).copy()
-    df["연도"] = df["구분"].apply(_parse_year)
-    df = df.dropna(subset=["연도"])
-    df["연도"] = df["연도"].astype(int)
-    long = df.drop(columns=["구분"]).melt(id_vars=["연도"], var_name="기관유형", value_name="만족도(%)")
-
-    fig = px.line(long, x="연도", y="만족도(%)", color="기관유형", markers=True)
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[15])
-
-
-def education_care_fig16(story_slug: str, slot_id: str) -> go.Figure:
-    df = _education_care_sheet(EDUCATION_CARE_SHEETS[16]).rename(columns={"Unnamed: 0": "국가"}).copy()
-    df = df.sort_values("Girls", ascending=False)
-    long = df.melt(id_vars=["국가"], value_vars=["Boys", "Girls"], var_name="성별", value_name="미참여율(%)")
+    df = _education_care_sheet(EDUCATION_CARE_SHEETS[14]).copy()
+    df = df.rename(columns={"Unnamed: 0": "국가"})
+    df = df.sort_values("Girls", ascending=True)
+    long = df.melt(id_vars=["국가"], value_vars=["Boys", "Girls"], var_name="성별", value_name="미참여율")
 
     fig = px.bar(
         long,
-        x="미참여율(%)",
+        x="미참여율",
         y="국가",
         color="성별",
         orientation="h",
         barmode="group",
     )
-    return _apply_common_layout(fig, EDUCATION_CARE_SHEETS[16])
+    fig.update_layout(height=900)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[14])
+
+
+def education_care_fig15(story_slug: str, slot_id: str) -> go.Figure:
+    img = _education_care_sheet_image(EDUCATION_CARE_SHEETS[15])
+    if img is None:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="이미지를 찾을 수 없습니다.",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            xref="paper",
+            yref="paper",
+        )
+        return _apply_common_layout(fig, EDUCATION_CARE_TITLES[15])
+
+    fig = go.Figure(go.Image(z=np.array(img)))
+    fig.update_xaxes(showticklabels=False, showgrid=False, zeroline=False)
+    fig.update_yaxes(showticklabels=False, showgrid=False, zeroline=False)
+    return _apply_common_layout(fig, EDUCATION_CARE_TITLES[15])
 
 
 VISUAL_RENDERERS = {
@@ -511,7 +589,6 @@ VISUAL_RENDERERS = {
     "education_care_fig13": education_care_fig13,
     "education_care_fig14": education_care_fig14,
     "education_care_fig15": education_care_fig15,
-    "education_care_fig16": education_care_fig16,
 }
 
 
