@@ -2,3 +2,6 @@
 __pycache__/
 .streamlit/
 /Data/
+!/Data/excel_data/
+!/Data/excel_data/(0204)교육돌봄 데이터_v1.0.xlsx
+!/Data/excel_data/(0204)정치사회 데이터_v1.0.xlsx
