@@ -27,53 +27,18 @@ PLACEHOLDER_TOKENS = (
 
 TOPICS: List[Dict[str, Any]] = [
     {
-        "id": "economy",
-        "label": "경제",
-        "color": "#1f77b4",
-        "description": "성장률·고용·생산성을 묶어보는 경제 진단 허브",
-        "emoji": "💹",
-    },
-    {
         "id": "welfare",
-        "label": "복지",
+        "label": "교육과 돌봄",
         "color": "#2ca02c",
-        "description": "불평등과 사회지출의 변화를 함께 점검합니다.",
+        "description": "학력·돌봄·교육격차의 변화를 함께 점검합니다.",
         "emoji": "🤝",
     },
     {
-        "id": "education",
-        "label": "교육",
-        "color": "#ff7f0e",
-        "description": "학력·역량·교육격차를 데이터로 추적합니다.",
-        "emoji": "🎓",
-    },
-    {
-        "id": "environment",
-        "label": "환경",
-        "color": "#17becf",
-        "description": "탄소·대기질·에너지 구조를 시계열로 살펴봅니다.",
-        "emoji": "🌏",
-    },
-    {
-        "id": "gender",
-        "label": "젠더",
-        "color": "#9467bd",
-        "description": "임금격차와 돌봄노동, 젠더 기반 지표를 묶었습니다.",
-        "emoji": "⚧️",
-    },
-    {
         "id": "politics",
-        "label": "정치",
+        "label": "정치와 시민사회",
         "color": "#8c564b",
-        "description": "참여·신뢰·정당정치를 데이터로 읽어봅니다.",
+        "description": "참여·신뢰·시민사회 지표를 데이터로 읽어봅니다.",
         "emoji": "🗳️",
-    },
-    {
-        "id": "qol",
-        "label": "삶의 질",
-        "color": "#e377c2",
-        "description": "행복·여가·정서 지표를 통합한 삶의 질 탐색.",
-        "emoji": "🙂",
     },
 ]
 
@@ -100,34 +65,13 @@ REGIONS = [
 ]
 
 INDICATORS: Dict[str, List[Dict[str, Any]]] = {
-    "economy": [
-        {"id": "gdp", "label": "1인당 GDP", "unit": "$", "seed": 11},
-        {"id": "unemp", "label": "실업률", "unit": "%", "seed": 12},
-        {"id": "prod", "label": "노동생산성", "unit": "지수", "seed": 13},
-    ],
     "welfare": [
-        {"id": "poverty", "label": "상대적 빈곤율", "unit": "%", "seed": 21},
-        {"id": "spend", "label": "사회지출", "unit": "%GDP", "seed": 22},
-    ],
-    "education": [
-        {"id": "tertiary", "label": "고등교육 이수율", "unit": "%", "seed": 31},
-        {"id": "pisa", "label": "PISA 점수", "unit": "점", "seed": 32},
-    ],
-    "environment": [
-        {"id": "pm25", "label": "PM2.5", "unit": "µg/m³", "seed": 41},
-        {"id": "co2", "label": "1인당 CO₂", "unit": "t", "seed": 42},
-    ],
-    "gender": [
-        {"id": "paygap", "label": "성별 임금격차", "unit": "%", "seed": 51},
-        {"id": "maternity", "label": "출산휴가 사용률", "unit": "%", "seed": 52},
+        {"id": "learning", "label": "교육 접근성", "unit": "지수", "seed": 21},
+        {"id": "care", "label": "돌봄 인프라", "unit": "지수", "seed": 22},
     ],
     "politics": [
-        {"id": "turnout", "label": "투표율", "unit": "%", "seed": 61},
-        {"id": "trust", "label": "정부 신뢰", "unit": "%", "seed": 62},
-    ],
-    "qol": [
-        {"id": "happiness", "label": "행복지수", "unit": "점", "seed": 71},
-        {"id": "leisure", "label": "여가시간", "unit": "시간", "seed": 72},
+        {"id": "turnout", "label": "참여율", "unit": "%", "seed": 61},
+        {"id": "trust", "label": "사회 신뢰", "unit": "%", "seed": 62},
     ],
 }
 
@@ -161,19 +105,25 @@ def _build_mock_db() -> Dict[str, Dict[str, Dict[str, List[Dict[str, float]]]]]:
 
 MOCK_DB = _build_mock_db()
 
-EDUCATION_LAB_DATASETS: Dict[str, Dict[str, Any]] = {
-    "education-care-realignment": {
-        "title": "미래사회의 문턱에서 한국의 교육 훈련 돌봄 체계는 어떻게 재정렬되고 있는가",
-        "path": DATA_DIR
-        / "excel_data"
-        / "(임시본)교육훈련 및 돌봄분야 데이터 모음.xlsx",
-    }
+LAB_DATASETS: Dict[str, Dict[str, Dict[str, Any]]] = {
+    "welfare": {
+        "education-care-v1": {
+            "title": "교육·돌봄 데이터 v1.0",
+            "path": DATA_DIR / "excel_data" / "(0204)교육돌봄 데이터_v1.0.xlsx",
+        },
+    },
+    "politics": {
+        "politics-civic-v1": {
+            "title": "정치·시민사회 데이터 v1.0",
+            "path": DATA_DIR / "excel_data" / "(0204)정치사회 데이터_v1.0.xlsx",
+        }
+    },
 }
 
 
-def _education_lab_datasets() -> Dict[str, Dict[str, Any]]:
+def _lab_datasets(topic_id: str) -> Dict[str, Dict[str, Any]]:
     datasets: Dict[str, Dict[str, Any]] = {}
-    for slug, meta in EDUCATION_LAB_DATASETS.items():
+    for slug, meta in (LAB_DATASETS.get(topic_id) or {}).items():
         path = meta.get("path")
         if not isinstance(path, Path) or not path.exists():
             continue
@@ -485,8 +435,8 @@ def _render_home_page(
         <div class="hero-card">
           <div class="hero-card__text">
             <span class="hero-chip">한국 사회, 시선</span>
-            <h1>이슈별로 읽는 7개 테마 허브</h1>
-            <p>경제·복지·교육·환경·젠더·정치·삶의 질까지 핵심 지표와 데이터 스토리를 하나의 리듬으로 읽습니다.</p>
+            <h1>이슈별로 읽는 2개 테마 허브</h1>
+            <p>교육과 돌봄·정치와 시민사회 핵심 지표와 데이터 스토리를 하나의 리듬으로 읽습니다.</p>
             <p class="hero-sub">데이터 기반 탐색 · 비교 · 타임라인까지 한 곳에서.</p>
           </div>
         </div>
@@ -793,123 +743,92 @@ def _render_lab_page() -> None:
         format_func=lambda value: next(t["label"] for t in TOPICS if t["id"] == value),
         key="lab_topic",
     )
-    if topic == "education":
-        st.caption("교육 주제는 실제 스토리 데이터로 자유 시각화를 제공합니다.")
-        datasets = _education_lab_datasets()
-        if not datasets:
-            st.warning("교육 데이터 세트를 찾을 수 없습니다.")
-            return
-
-        dataset_slugs = list(datasets.keys())
-        selected_slug = st.selectbox(
-            "스토리",
-            options=dataset_slugs,
-            format_func=lambda slug: datasets[slug]["title"],
-            key="lab_edu_story",
-        )
-        selected_dataset = datasets[selected_slug]
-        path_value = str(selected_dataset["path"])
-
-        sheets = _list_excel_sheets(path_value)
-        if not sheets:
-            st.warning("선택한 스토리의 데이터 시트를 찾을 수 없습니다.")
-            return
-
-        sheet = st.selectbox("데이터 시트", options=sheets, key="lab_edu_sheet")
-        df = _load_excel_sheet(path_value, sheet).copy()
-
-        with st.expander("데이터 미리보기", expanded=False):
-            st.dataframe(df.head(12), use_container_width=True)
-
-        chart_type = st.selectbox(
-            "차트 유형",
-            options=["line", "bar", "scatter", "area"],
-            format_func=lambda value: {
-                "line": "선",
-                "bar": "막대",
-                "scatter": "산점도",
-                "area": "영역",
-            }[value],
-            key="lab_edu_chart_type",
-        )
-
-        columns = list(df.columns)
-        x_col = st.selectbox("X축", options=columns, key="lab_edu_x")
-        y_candidates = [col for col in columns if col != x_col]
-        y_default = y_candidates[:1] if y_candidates else []
-        y_cols = st.multiselect("Y축", options=y_candidates, default=y_default, key="lab_edu_y")
-        color_col = st.selectbox("색상 그룹(선택)", options=["없음"] + columns, key="lab_edu_color")
-        coerce_numeric = st.checkbox("Y축 숫자 변환", value=True, key="lab_edu_numeric")
-
-        if not y_cols:
-            st.info("Y축을 최소 1개 선택해 주세요.")
-            return
-        if chart_type == "scatter" and len(y_cols) != 1:
-            st.info("산점도는 Y축을 1개만 선택할 수 있습니다.")
-            return
-
-        plot_df = df.copy()
-        if coerce_numeric:
-            for col in y_cols:
-                plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
-
-        if y_cols:
-            plot_df = plot_df.dropna(subset=[x_col] + y_cols)
-
-        plot_kwargs = {
-            "x": x_col,
-            "color": None if color_col == "없음" else color_col,
-        }
-
-        if chart_type == "line":
-            fig = px.line(plot_df, y=y_cols, markers=True, **plot_kwargs)
-        elif chart_type == "bar":
-            fig = px.bar(plot_df, y=y_cols, barmode="group", **plot_kwargs)
-        elif chart_type == "area":
-            fig = px.area(plot_df, y=y_cols, **plot_kwargs)
-        else:
-            fig = px.scatter(plot_df, y=y_cols[0], **plot_kwargs)
-
-        fig.update_layout(
-            height=480,
-            margin=dict(l=16, r=16, t=32, b=16),
-            hovermode="closest",
-        )
-        _render_centered_chart(
-            fig,
-            key=f"lab_chart_edu_{selected_slug}_{sheet}_{chart_type}",
-            default_height=480,
-        )
-        st.caption("데이터 랩은 연구자·언론인용 빠른 탐색을 목표로 합니다.")
+    datasets = _lab_datasets(topic)
+    if not datasets:
+        st.warning("선택한 주제의 데이터 세트를 찾을 수 없습니다.")
         return
 
-    indicators = INDICATORS[topic]
-    indicator_ids = [indicator["id"] for indicator in indicators]
-    if st.session_state.get("lab_indicator") not in indicator_ids:
-        st.session_state["lab_indicator"] = indicator_ids[0]
-    indicator = st.selectbox(
-        "지표",
-        options=indicator_ids,
-        format_func=lambda value: next(ind["label"] for ind in indicators if ind["id"] == value),
-        key="lab_indicator",
+    dataset_slugs = list(datasets.keys())
+    selected_slug = st.selectbox(
+        "데이터 세트",
+        options=dataset_slugs,
+        format_func=lambda slug: datasets[slug]["title"],
+        key="lab_dataset",
     )
-    region = st.selectbox("지역", options=REGIONS, key="lab_region")
+    selected_dataset = datasets[selected_slug]
+    path_value = str(selected_dataset["path"])
 
-    df = pd.DataFrame(MOCK_DB[topic][indicator][region])
-    lab_fig = px.line(df, x="year", y="value", markers=True)
-    lab_fig.update_layout(
+    sheets = _list_excel_sheets(path_value)
+    if not sheets:
+        st.warning("선택한 데이터 세트의 시트를 찾을 수 없습니다.")
+        return
+
+    sheet = st.selectbox("데이터 시트", options=sheets, key="lab_sheet")
+    df = _load_excel_sheet(path_value, sheet).copy()
+
+    with st.expander("데이터 미리보기", expanded=True):
+        st.dataframe(df.head(20), use_container_width=True)
+
+    chart_type = st.selectbox(
+        "차트 유형",
+        options=["line", "bar", "scatter", "area"],
+        format_func=lambda value: {
+            "line": "선",
+            "bar": "막대",
+            "scatter": "산점도",
+            "area": "영역",
+        }[value],
+        key="lab_chart_type",
+    )
+
+    columns = list(df.columns)
+    x_col = st.selectbox("X축", options=columns, key="lab_x")
+    y_candidates = [col for col in columns if col != x_col]
+    y_default = y_candidates[:1] if y_candidates else []
+    y_cols = st.multiselect("Y축", options=y_candidates, default=y_default, key="lab_y")
+    color_col = st.selectbox("색상 그룹(선택)", options=["없음"] + columns, key="lab_color")
+    coerce_numeric = st.checkbox("Y축 숫자 변환", value=True, key="lab_numeric")
+
+    if not y_cols:
+        st.info("Y축을 최소 1개 선택해 주세요.")
+        return
+    if chart_type == "scatter" and len(y_cols) != 1:
+        st.info("산점도는 Y축을 1개만 선택할 수 있습니다.")
+        return
+
+    plot_df = df.copy()
+    if coerce_numeric:
+        for col in y_cols:
+            plot_df[col] = pd.to_numeric(plot_df[col], errors="coerce")
+
+    if y_cols:
+        plot_df = plot_df.dropna(subset=[x_col] + y_cols)
+
+    plot_kwargs = {
+        "x": x_col,
+        "color": None if color_col == "없음" else color_col,
+    }
+
+    if chart_type == "line":
+        fig = px.line(plot_df, y=y_cols, markers=True, **plot_kwargs)
+    elif chart_type == "bar":
+        fig = px.bar(plot_df, y=y_cols, barmode="group", **plot_kwargs)
+    elif chart_type == "area":
+        fig = px.area(plot_df, y=y_cols, **plot_kwargs)
+    else:
+        fig = px.scatter(plot_df, y=y_cols[0], **plot_kwargs)
+
+    fig.update_layout(
         height=480,
         margin=dict(l=16, r=16, t=32, b=16),
-        xaxis_title="연도",
-        yaxis_title="값",
         hovermode="closest",
     )
     _render_centered_chart(
-        lab_fig,
-        key=f"lab_chart_{topic}_{indicator}_{region}",
+        fig,
+        key=f"lab_chart_{topic}_{selected_slug}_{sheet}_{chart_type}",
         default_height=480,
     )
-    st.caption("데이터 랩은 연구자·언론인용 빠른 탐색을 목표로 합니다. (데모 데이터)")
+    st.caption("데이터 랩은 연구자·언론인용 빠른 탐색을 목표로 합니다.")
 
 
 def _render_archive_page(
@@ -976,7 +895,7 @@ def _render_about_page() -> None:
         <div class="about-grid">
           <div class="about-card">
             <h4>프로젝트 소개</h4>
-            <p>‘한국 사회, 시선’은 7개 이슈 축으로 한국 사회의 주요 변동을 정리하고, 데이터 스토리와 시각화를 결합한 허브입니다.</p>
+            <p>‘한국 사회, 시선’은 2개 이슈 축으로 한국 사회의 주요 변동을 정리하고, 데이터 스토리와 시각화를 결합한 허브입니다.</p>
             <p>사회지표를 단일 페이지에서 읽고 비교하며, 정책 타임라인까지 연결하는 프로토타입을 목표로 합니다.</p>
           </div>
           <div class="about-card">
