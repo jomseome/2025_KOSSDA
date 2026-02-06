@@ -15,7 +15,7 @@ from .chart_builder import build_chart
 from .generated_content import list_stories, load_story
 from .story_render import render_story_content
 from .visual_runtime import render_interactive_panel, render_visual_from_registry
-from .workspace_data import DATA_DIR
+from .workspace_data import DATA_DIR, resolve_excel_path
 
 PLACEHOLDER_TOKENS = (
     "{{viz}}",
@@ -109,13 +109,19 @@ LAB_DATASETS: Dict[str, Dict[str, Dict[str, Any]]] = {
     "welfare": {
         "education-care-v1": {
             "title": "교육·돌봄 데이터 v1.0",
-            "path": DATA_DIR / "excel_data" / "(0204)교육돌봄 데이터_v1.0.xlsx",
+            "path": resolve_excel_path(
+                "(0204)교육돌봄 데이터_v1.0.xlsx"
+            )
+            or DATA_DIR / "excel_data" / "(0204)교육돌봄 데이터_v1.0.xlsx",
         },
     },
     "politics": {
         "politics-civic-v1": {
             "title": "정치·시민사회 데이터 v1.0",
-            "path": DATA_DIR / "excel_data" / "(0204)정치사회 데이터_v1.0.xlsx",
+            "path": resolve_excel_path(
+                "(0204)정치사회 데이터_v1.0.xlsx"
+            )
+            or DATA_DIR / "excel_data" / "(0204)정치사회 데이터_v1.0.xlsx",
         }
     },
 }

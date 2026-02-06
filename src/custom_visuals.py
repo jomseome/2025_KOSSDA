@@ -14,18 +14,16 @@ import streamlit as st
 from openpyxl import load_workbook
 from PIL import Image
 
-from .workspace_data import DATA_DIR
+from .workspace_data import DATA_DIR, resolve_excel_path
 
 DATA_PATH = DATA_DIR / "excel_data" / "sample_story_points.xlsx"
-EDUCATION_CARE_PATH = (
-    DATA_DIR
-    / "excel_data"
-    / "(0204)교육돌봄 데이터_v1.0.xlsx"
+EDUCATION_CARE_FILENAME = "(0204)교육돌봄 데이터_v1.0.xlsx"
+POLITICS_CIVIC_FILENAME = "(0204)정치사회 데이터_v1.0.xlsx"
+EDUCATION_CARE_PATH = resolve_excel_path(EDUCATION_CARE_FILENAME) or (
+    DATA_DIR / "excel_data" / EDUCATION_CARE_FILENAME
 )
-POLITICS_CIVIC_PATH = (
-    DATA_DIR
-    / "excel_data"
-    / "(0204)정치사회 데이터_v1.0.xlsx"
+POLITICS_CIVIC_PATH = resolve_excel_path(POLITICS_CIVIC_FILENAME) or (
+    DATA_DIR / "excel_data" / POLITICS_CIVIC_FILENAME
 )
 
 EDUCATION_CARE_SHEETS = {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -79,3 +80,18 @@ def load_workbook(path: str) -> Dict[str, pd.DataFrame]:
 
 def numeric_columns(df: pd.DataFrame) -> List[str]:
     return [col for col in df.columns if pd.api.types.is_numeric_dtype(df[col])]
+
+
+def resolve_excel_path(filename: str) -> Optional[Path]:
+    candidate = EXCEL_DIR / filename
+    if candidate.exists():
+        return candidate
+
+    target_nfc = unicodedata.normalize("NFC", filename)
+    target_nfd = unicodedata.normalize("NFD", filename)
+    for path in EXCEL_DIR.glob("*.xlsx"):
+        name_nfc = unicodedata.normalize("NFC", path.name)
+        name_nfd = unicodedata.normalize("NFD", path.name)
+        if name_nfc == target_nfc or name_nfd == target_nfd:
+            return path
+    return None
